@@ -1,29 +1,25 @@
+// Import Firebase configuration and Firestore functions
+import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from './firebase-config.js';
+
 // State
 let posts = [];
 let selectedTagsForNewPost = new Set();
 let editingPostId = null;
-const STORAGE_KEY = 'tasu_blog_posts';
+const STORAGE_KEY = 'tasu_blog_posts'; // Keep for migration
 const ADMIN_PASSWORD = 'le3gagnant@gmail.com';
-
-// Default Data - Empty array, user must create content
-const defaultPosts = [];
+const FIRESTORE_COLLECTION = 'articles';
 
 // Initialization
-function init() {
-    const storedPosts = localStorage.getItem(STORAGE_KEY);
-    if (storedPosts) {
-        try {
-            posts = JSON.parse(storedPosts);
-            posts.forEach(p => {
-                if (!p.slug) p.slug = createSlug(p.title);
-                if (!p.subtitle) p.subtitle = p.excerpt || '';
-            });
-        } catch (e) {
-            console.error('Error parsing posts:', e);
-            posts = [];
-        }
-    } else {
-        posts = [];
+async function init() {
+    try {
+        // Load posts from Firestore
+        await loadPostsFromFirestore();
+
+        // Check for localStorage migration (one-time)
+        await migrateFromLocalStorage();
+    } catch (error) {
+        console.error('Initialization error:', error);
+        alert('Error loading articles. Please refresh the page.');
     }
 
     renderSidebarTags();
@@ -52,6 +48,77 @@ function init() {
 
     handleHashRouting();
     window.addEventListener('hashchange', handleHashRouting);
+}
+
+// Load posts from Firestore
+async function loadPostsFromFirestore() {
+    try {
+        const articlesRef = collection(db, FIRESTORE_COLLECTION);
+        const q = query(articlesRef, orderBy('date', 'desc'));
+        const querySnapshot = await getDocs(q);
+
+        posts = [];
+        querySnapshot.forEach((docSnapshot) => {
+            const data = docSnapshot.data();
+            posts.push({
+                id: docSnapshot.id,
+                ...data,
+                slug: data.slug || createSlug(data.title)
+            });
+        });
+
+        console.log(`Loaded ${posts.length} articles from Firestore`);
+    } catch (error) {
+        console.error('Error loading from Firestore:', error);
+        posts = [];
+    }
+}
+
+// Migrate localStorage data to Firestore (one-time)
+async function migrateFromLocalStorage() {
+    const migrationKey = 'tasu_migrated_to_firestore';
+
+    // Check if already migrated
+    if (localStorage.getItem(migrationKey)) {
+        return;
+    }
+
+    const storedPosts = localStorage.getItem(STORAGE_KEY);
+    if (!storedPosts) {
+        // No localStorage data to migrate
+        localStorage.setItem(migrationKey, 'true');
+        return;
+    }
+
+    try {
+        const localPosts = JSON.parse(storedPosts);
+        if (localPosts.length === 0) {
+            localStorage.setItem(migrationKey, 'true');
+            return;
+        }
+
+        console.log(`Migrating ${localPosts.length} articles from localStorage to Firestore...`);
+
+        // Upload each post to Firestore
+        for (const post of localPosts) {
+            const { id, ...postData } = post; // Remove old localStorage ID
+            postData.slug = postData.slug || createSlug(postData.title);
+            await addDoc(collection(db, FIRESTORE_COLLECTION), postData);
+        }
+
+        // Reload posts from Firestore
+        await loadPostsFromFirestore();
+
+        // Mark as migrated
+        localStorage.setItem(migrationKey, 'true');
+        localStorage.removeItem(STORAGE_KEY); // Clear old data
+
+        console.log('Migration complete! localStorage data moved to Firestore');
+        alert(`Successfully migrated ${localPosts.length} articles to cloud storage!`);
+    } catch (error) {
+        console.error('Migration error:', error);
+        alert('Error migrating articles. Please contact support.');
+    }
 }
 
 function createSlug(title) {
@@ -170,7 +237,7 @@ function renderPostsToGrid(gridElement, postsToRender) {
                 text-decoration: none;
                 border-radius: 99px;
                 font-weight: 700;
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                transition: all 0.3s cubic-bezierز(0.4, 0, 0.2, 1);
             ">Go to Admin Panel</a>
         `;
         gridElement.appendChild(emptyState);
@@ -303,11 +370,17 @@ function renderAdmin(container) {
             deleteBtn.onmouseover = () => deleteBtn.style.background = 'rgba(255, 50, 50, 0.2)';
             deleteBtn.onmouseout = () => deleteBtn.style.background = 'rgba(255, 50, 50, 0.1)';
 
-            deleteBtn.onclick = () => {
+            deleteBtn.onclick = async () => {
                 if (confirm(`Are you sure you want to delete "${post.title}"?`)) {
-                    posts = posts.filter(p => p.id !== post.id);
-                    savePosts();
-                    navigate('admin');
+                    try {
+                        await deleteDoc(doc(db, FIRESTORE_COLLECTION, post.id));
+                        await loadPostsFromFirestore();
+                        renderSidebarTags();
+                        navigate('admin');
+                    } catch (error) {
+                        console.error('Error deleting:', error);
+                        alert('Error deleting article. Please try again.');
+                    }
                 }
             };
 
@@ -330,7 +403,7 @@ function renderAdmin(container) {
         resetForm();
     };
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const title = form.querySelector('#post-title').value;
@@ -342,38 +415,33 @@ function renderAdmin(container) {
         const newTags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
         const allTags = [...selectedTagsForNewPost, ...newTags];
 
-        if (postId) {
-            // Update existing post
-            const postIndex = posts.findIndex(p => p.id === postId);
-            if (postIndex !== -1) {
-                posts[postIndex] = {
-                    ...posts[postIndex],
-                    title,
-                    subtitle,
-                    tags: allTags,
-                    content,
-                    slug: createSlug(title)
-                };
-            }
-        } else {
-            // Create new post
-            const newPost = {
-                id: Date.now().toString(),
-                title,
-                subtitle,
-                tags: allTags,
-                content,
-                date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                slug: createSlug(title)
-            };
-            posts.push(newPost);
-        }
+        const postData = {
+            title,
+            subtitle,
+            tags: allTags,
+            content,
+            slug: createSlug(title),
+            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        };
 
-        savePosts();
-        renderSidebarTags();
-        selectedTagsForNewPost.clear();
-        resetForm();
-        navigate('admin');
+        try {
+            if (postId) {
+                // Update existing post
+                await updateDoc(doc(db, FIRESTORE_COLLECTION, postId), postData);
+            } else {
+                // Create new post
+                await addDoc(collection(db, FIRESTORE_COLLECTION), postData);
+            }
+
+            await loadPostsFromFirestore();
+            renderSidebarTags();
+            selectedTagsForNewPost.clear();
+            resetForm();
+            navigate('admin');
+        } catch (error) {
+            console.error('Error saving article:', error);
+            alert('Error saving article. Please try again.');
+        }
     });
 
     container.appendChild(clone);
@@ -550,10 +618,6 @@ function renderArticle(container, post) {
     }, 100);
 
     window.scrollTo(0, 0);
-}
-
-function savePosts() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
 }
 
 init();
