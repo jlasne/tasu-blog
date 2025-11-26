@@ -106,17 +106,14 @@ function navigate(view, data = null) {
         navHome.classList.add('active');
         navAdmin.classList.remove('active');
         searchContainer.style.display = 'block';
-        updateMetaTags('home');
     } else if (view === 'admin') {
         navHome.classList.remove('active');
         navAdmin.classList.add('active');
         searchContainer.style.display = 'none';
-        updateMetaTags('admin');
     } else if (view === 'article') {
         navHome.classList.remove('active');
         navAdmin.classList.remove('active');
         searchContainer.style.display = 'none';
-        updateMetaTags('article', data);
     }
 
     // Render View
@@ -129,44 +126,6 @@ function navigate(view, data = null) {
     } else if (view === 'article') {
         renderArticle(mainContent, data);
     }
-}
-
-function updateMetaTags(view, data = null) {
-    const title = document.querySelector('title');
-    const metaDesc = document.querySelector('meta[name="description"]');
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    const ogDesc = document.querySelector('meta[property="og:description"]');
-    const ogUrl = document.querySelector('meta[property="og:url"]');
-    const ogImage = document.querySelector('meta[property="og:image"]');
-    const twitterTitle = document.querySelector('meta[property="twitter:title"]');
-    const twitterDesc = document.querySelector('meta[property="twitter:description"]');
-    const twitterImage = document.querySelector('meta[property="twitter:image"]');
-
-    let newTitle = 'Tasu Blog - Growth happens when you stop guessing';
-    let newDesc = 'Explore the latest articles and news from Tasu. Growth happens when you stop guessing and start listening.';
-    let newUrl = window.location.href;
-    let newImage = 'https://blog.tasu.ai/og-image.jpg'; // Default image
-
-    if (view === 'article' && data) {
-        newTitle = `${data.title} - Tasu Blog`;
-        newDesc = data.excerpt;
-        newImage = data.image || newImage;
-    } else if (view === 'admin') {
-        newTitle = 'Admin - Tasu Blog';
-    }
-
-    // Update tags
-    if (title) title.textContent = newTitle;
-    if (metaDesc) metaDesc.setAttribute('content', newDesc);
-
-    if (ogTitle) ogTitle.setAttribute('content', newTitle);
-    if (ogDesc) ogDesc.setAttribute('content', newDesc);
-    if (ogUrl) ogUrl.setAttribute('content', newUrl);
-    if (ogImage) ogImage.setAttribute('content', newImage);
-
-    if (twitterTitle) twitterTitle.setAttribute('content', newTitle);
-    if (twitterDesc) twitterDesc.setAttribute('content', newDesc);
-    if (twitterImage) twitterImage.setAttribute('content', newImage);
 }
 
 // Render Home
