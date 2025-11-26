@@ -5,33 +5,8 @@ let editingPostId = null;
 const STORAGE_KEY = 'tasu_blog_posts';
 const ADMIN_PASSWORD = 'le3gagnant@gmail.com';
 
-// Default Data
-const defaultPosts = [
-    {
-        id: '1',
-        title: 'The Future of AI is Here',
-        subtitle: 'Discover how artificial intelligence is reshaping our daily lives',
-        content: '# The Future of AI\n\nArtificial Intelligence is no longer just a buzzword. It is integrated into our phones, our cars, and our homes. \n\n## What to expect\n\nIn this article, we explore the transformative power of AI...',
-        date: 'Oct 24, 2023',
-        tags: ['AI', 'Technology', 'Innovation']
-    },
-    {
-        id: '2',
-        title: 'Minimalism in Design',
-        subtitle: 'Why less is more in modern application design',
-        content: '# Less is More\n\nMinimalism is about stripping away the unnecessary to focus on what truly matters. It is not just an aesthetic choice, but a functional one.\n\n> "Simplicity is the ultimate sophistication." - Leonardo da Vinci',
-        date: 'Nov 02, 2023',
-        tags: ['Design', 'UX', 'Tutorial']
-    },
-    {
-        id: '3',
-        title: 'Exploring the Night',
-        subtitle: 'A photographic journey through neon-lit streets',
-        content: '# Neon Lights\n\nThe city comes alive at night. Neon signs reflect off wet pavement, creating a cyberpunk atmosphere that is both eerie and beautiful.',
-        date: 'Nov 15, 2023',
-        tags: ['Photography', 'Travel', 'Insights']
-    }
-];
+// Default Data - Empty array, user must create content
+const defaultPosts = [];
 
 // Initialization
 function init() {
@@ -45,12 +20,10 @@ function init() {
             });
         } catch (e) {
             console.error('Error parsing posts:', e);
-            posts = defaultPosts;
-            savePosts();
+            posts = [];
         }
     } else {
-        posts = defaultPosts.map(p => ({ ...p, slug: createSlug(p.title) }));
-        savePosts();
+        posts = [];
     }
 
     renderSidebarTags();
@@ -177,6 +150,33 @@ function renderPostsToGrid(gridElement, postsToRender) {
     if (!gridElement) return;
 
     gridElement.innerHTML = '';
+
+    // Show empty state if no posts
+    if (postsToRender.length === 0) {
+        const emptyState = document.createElement('div');
+        emptyState.style.cssText = `
+            text-align: center;
+            padding: 80px 40px;
+            color: var(--text-muted);
+        `;
+        emptyState.innerHTML = `
+            <h2 style="font-size: 2rem; color: var(--text-main); margin-bottom: 16px;">No Articles Yet</h2>
+            <p style="font-size: 1.1rem; margin-bottom: 32px;">Start creating content by accessing the admin panel.</p>
+            <a href="#/admin" style="
+                display: inline-block;
+                padding: 14px 32px;
+                background: var(--accent-orange);
+                color: #000;
+                text-decoration: none;
+                border-radius: 99px;
+                font-weight: 700;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            ">Go to Admin Panel</a>
+        `;
+        gridElement.appendChild(emptyState);
+        return;
+    }
+
     postsToRender.forEach(post => {
         const card = document.createElement('div');
         card.className = 'blog-card';
