@@ -1,7 +1,7 @@
 // State
 let posts = [];
 const STORAGE_KEY = 'tasu_blog_posts';
-const ADMIN_PASSWORD = 'tasu'; // Simple password for demo
+const ADMIN_PASSWORD = 'le3gagnant@gmail.com';
 
 // Default Data
 const defaultPosts = [
@@ -45,19 +45,21 @@ function init() {
     }
 
     // Event Listeners
-    document.getElementById('nav-home').addEventListener('click', () => {
-        updateUrlParams({});
-        navigate('home');
-    });
-    document.getElementById('nav-admin').addEventListener('click', () => {
-        updateUrlParams({ view: 'admin' });
-        navigate('admin');
-    });
+    const navHome = document.getElementById('nav-home');
+    if (navHome) {
+        navHome.addEventListener('click', () => {
+            updateUrlParams({});
+            navigate('home');
+        });
+    }
 
-    document.getElementById('search-bar').addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        filterPosts(query);
-    });
+    const searchBar = document.getElementById('search-bar');
+    if (searchBar) {
+        searchBar.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            filterPosts(query);
+        });
+    }
 
     // Check URL params for initial route
     handleRouting();
@@ -98,22 +100,18 @@ function updateUrlParams(params) {
 function navigate(view, data = null) {
     const mainContent = document.getElementById('main-content');
     const navHome = document.getElementById('nav-home');
-    const navAdmin = document.getElementById('nav-admin');
     const searchContainer = document.querySelector('.search-container');
 
     // Update Nav State
     if (view === 'home') {
-        navHome.classList.add('active');
-        navAdmin.classList.remove('active');
-        searchContainer.style.display = 'block';
+        if (navHome) navHome.classList.add('active');
+        if (searchContainer) searchContainer.style.display = 'block';
     } else if (view === 'admin') {
-        navHome.classList.remove('active');
-        navAdmin.classList.add('active');
-        searchContainer.style.display = 'none';
+        if (navHome) navHome.classList.remove('active');
+        if (searchContainer) searchContainer.style.display = 'none';
     } else if (view === 'article') {
-        navHome.classList.remove('active');
-        navAdmin.classList.remove('active');
-        searchContainer.style.display = 'none';
+        if (navHome) navHome.classList.remove('active');
+        if (searchContainer) searchContainer.style.display = 'none';
     }
 
     // Render View
@@ -152,12 +150,12 @@ function renderPostsToGrid(gridElement, postsToRender) {
         const imgUrl = post.image || 'https://via.placeholder.com/400x200?text=No+Image';
 
         // Tags rendering
-        const tagsHtml = post.tags ? post.tags.map(tag => `<span style="color: var(--accent-orange); font-size: 0.8rem; margin-right: 5px;">#${tag}</span>`).join('') : '';
+        const tagsHtml = post.tags ? post.tags.map(tag => `<span class="tag-pill">#${tag}</span>`).join('') : '';
 
         card.innerHTML = `
             <img src="${imgUrl}" alt="${post.title}" class="card-image">
             <div class="card-content">
-                <div style="margin-bottom: 8px;">${tagsHtml}</div>
+                <div style="margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap;">${tagsHtml}</div>
                 <h3 class="card-title">${post.title}</h3>
                 <p class="card-excerpt">${post.excerpt}</p>
                 <div class="card-meta">${post.date}</div>
@@ -185,21 +183,75 @@ function renderAdmin(container) {
     const template = document.getElementById('admin-template');
     const clone = template.content.cloneNode(true);
 
+    // Render Article List
+    const listContainer = clone.querySelector('#admin-article-list');
+    if (posts.length === 0) {
+        listContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No articles found.</p>';
+    } else {
+        posts.forEach(post => {
+            const item = document.createElement('div');
+            item.style.cssText = `
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px;
+                background: #0a0a0c;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                margin-bottom: 12px;
+            `;
+
+            const title = document.createElement('span');
+            title.textContent = post.title;
+            title.style.fontWeight = '500';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.style.cssText = `
+                background: rgba(255, 50, 50, 0.1);
+                color: #ff4444;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.85rem;
+                font-weight: 600;
+                transition: all 0.2s;
+            `;
+            deleteBtn.onmouseover = () => deleteBtn.style.background = 'rgba(255, 50, 50, 0.2)';
+            deleteBtn.onmouseout = () => deleteBtn.style.background = 'rgba(255, 50, 50, 0.1)';
+
+            deleteBtn.onclick = () => {
+                if (confirm(`Are you sure you want to delete "${post.title}"?`)) {
+                    posts = posts.filter(p => p.id !== post.id);
+                    savePosts();
+                    navigate('admin'); // Re-render to show updated list
+                }
+            };
+
+            item.appendChild(title);
+            item.appendChild(deleteBtn);
+            listContainer.appendChild(item);
+        });
+    }
+
+    // Form Handling
     const form = clone.querySelector('#post-form');
-    form.onsubmit = (e) => {
+
+    form.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        const password = clone.querySelector('#admin-password').value;
+        const password = form.querySelector('#admin-password').value;
         if (password !== ADMIN_PASSWORD) {
             alert('Incorrect Admin Password!');
             return;
         }
 
-        const title = clone.querySelector('#post-title').value;
-        const image = clone.querySelector('#post-image').value;
-        const tagsStr = clone.querySelector('#post-tags').value;
-        const excerpt = clone.querySelector('#post-excerpt').value;
-        const content = clone.querySelector('#post-content').value;
+        const title = form.querySelector('#post-title').value;
+        const image = form.querySelector('#post-image').value;
+        const tagsStr = form.querySelector('#post-tags').value;
+        const excerpt = form.querySelector('#post-excerpt').value;
+        const content = form.querySelector('#post-content').value;
 
         const tags = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
@@ -217,7 +269,7 @@ function renderAdmin(container) {
         savePosts();
         updateUrlParams({});
         navigate('home');
-    };
+    });
 
     container.appendChild(clone);
 }
@@ -242,7 +294,7 @@ function renderArticle(container, post) {
         post.tags.forEach(tag => {
             const span = document.createElement('span');
             span.className = 'tag-pill';
-            span.textContent = tag;
+            span.textContent = '#' + tag;
             tagsContainer.appendChild(span);
         });
     }
