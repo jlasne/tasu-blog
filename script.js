@@ -12,7 +12,7 @@ const defaultPosts = [
         excerpt: 'Discover how artificial intelligence is reshaping our daily lives and what to expect in the coming years.',
         content: '# The Future of AI\n\nArtificial Intelligence is no longer just a buzzword. It is integrated into our phones, our cars, and our homes. \n\n## What to expect\n\nIn this article, we explore the transformative power of AI...',
         date: 'Oct 24, 2023',
-        tags: ['AI', 'Tech', 'Future']
+        tags: ['AI', 'Technology', 'Innovation']
     },
     {
         id: '2',
@@ -21,7 +21,7 @@ const defaultPosts = [
         excerpt: 'Why less is more. A deep dive into the philosophy of minimalist design in modern applications.',
         content: '# Less is More\n\nMinimalism is about stripping away the unnecessary to focus on what truly matters. It is not just an aesthetic choice, but a functional one.\n\n> "Simplicity is the ultimate sophistication." - Leonardo da Vinci',
         date: 'Nov 02, 2023',
-        tags: ['Design', 'Minimalism']
+        tags: ['Design', 'UX', 'Tutorial']
     },
     {
         id: '3',
@@ -30,7 +30,7 @@ const defaultPosts = [
         excerpt: 'A photographic journey through the neon-lit streets of Tokyo after dark.',
         content: '# Neon Lights\n\nThe city comes alive at night. Neon signs reflect off wet pavement, creating a cyberpunk atmosphere that is both eerie and beautiful.',
         date: 'Nov 15, 2023',
-        tags: ['Photography', 'Travel', 'Night']
+        tags: ['Photography', 'Travel', 'Insights']
     }
 ];
 
@@ -38,21 +38,26 @@ const defaultPosts = [
 function init() {
     const storedPosts = localStorage.getItem(STORAGE_KEY);
     if (storedPosts) {
-        posts = JSON.parse(storedPosts);
+        try {
+            posts = JSON.parse(storedPosts);
+            // Ensure all posts have slugs
+            posts.forEach(p => {
+                if (!p.slug) p.slug = createSlug(p.title);
+            });
+        } catch (e) {
+            console.error('Error parsing posts:', e);
+            posts = defaultPosts;
+            savePosts();
+        }
     } else {
-        posts = defaultPosts;
+        posts = defaultPosts.map(p => ({ ...p, slug: createSlug(p.title) }));
         savePosts();
     }
 
-    // Event Listeners
-    const navHome = document.getElementById('nav-home');
-    if (navHome) {
-        navHome.addEventListener('click', () => {
-            updateUrlParams({});
-            navigate('home');
-        });
-    }
+    // Render Sidebar Tags
+    renderSidebarTags();
 
+    // Event Listeners
     const searchBar = document.getElementById('search-bar');
     if (searchBar) {
         searchBar.addEventListener('input', (e) => {
@@ -61,60 +66,87 @@ function init() {
         });
     }
 
-    // Check URL params for initial route
-    handleRouting();
+    // Sidebar Navigation
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // Remove active class from all
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            // Add to clicked
+            e.target.classList.add('active');
+
+            const filter = e.target.dataset.filter;
+            if (filter === 'all') {
+                navigate('home');
+            } else {
+                filterPosts(filter);
+            }
+        });
+    });
+
+    // Handle hash routing
+    handleHashRouting();
 
     // Handle browser back/forward
-    window.addEventListener('popstate', handleRouting);
+    window.addEventListener('hashchange', handleHashRouting);
 }
 
-function handleRouting() {
-    const params = new URLSearchParams(window.location.search);
-    const articleId = params.get('article');
-    const view = params.get('view');
+function createSlug(title) {
+    return title.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '');
+}
 
-    if (articleId) {
-        const post = posts.find(p => p.id === articleId);
+function renderSidebarTags() {
+    const tagList = document.getElementById('tag-list');
+    if (!tagList) return;
+
+    const allTags = new Set();
+    posts.forEach(post => {
+        if (post.tags) {
+            post.tags.forEach(tag => allTags.add(tag));
+        }
+    });
+
+    allTags.forEach(tag => {
+        const btn = document.createElement('button');
+        btn.className = 'nav-item';
+        btn.textContent = tag;
+        btn.dataset.filter = tag;
+        btn.onclick = (e) => {
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            filterPosts(tag);
+            // Stay on home when filtering
+            window.location.hash = '';
+        };
+        tagList.appendChild(btn);
+    });
+}
+
+function handleHashRouting() {
+    const hash = window.location.hash.substring(1); // Remove #
+
+    if (!hash || hash === '/') {
+        navigate('home');
+    } else if (hash === '/admin') {
+        navigate('admin');
+    } else if (hash.startsWith('/article/')) {
+        const slug = hash.replace('/article/', '');
+        const post = posts.find(p => p.slug === slug || p.id === slug);
         if (post) {
             navigate('article', post);
         } else {
             navigate('home');
         }
-    } else if (view === 'admin') {
-        navigate('admin');
     } else {
         navigate('home');
     }
 }
 
-function updateUrlParams(params) {
-    const url = new URL(window.location);
-    url.search = ''; // Clear existing
-    for (const key in params) {
-        url.searchParams.set(key, params[key]);
-    }
-    window.history.pushState({}, '', url);
-}
-
 // Navigation
 function navigate(view, data = null) {
     const mainContent = document.getElementById('main-content');
-    const navHome = document.getElementById('nav-home');
-    const searchContainer = document.querySelector('.search-container');
 
-    // Update Nav State
-    if (view === 'home') {
-        if (navHome) navHome.classList.add('active');
-        if (searchContainer) searchContainer.style.display = 'block';
-    } else if (view === 'admin') {
-        if (navHome) navHome.classList.remove('active');
-        if (searchContainer) searchContainer.style.display = 'none';
-    } else if (view === 'article') {
-        if (navHome) navHome.classList.remove('active');
-        if (searchContainer) searchContainer.style.display = 'none';
-    }
-
-    // Render View
     mainContent.innerHTML = '';
 
     if (view === 'home') {
@@ -134,44 +166,53 @@ function renderHome(container) {
 
     renderPostsToGrid(grid, posts);
 
+    const searchBar = clone.querySelector('#search-bar');
+    if (searchBar) {
+        searchBar.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            filterPosts(query);
+        });
+    }
+
     container.appendChild(clone);
 }
 
 function renderPostsToGrid(gridElement, postsToRender) {
+    if (!gridElement) gridElement = document.getElementById('blog-grid');
+    if (!gridElement) return;
+
     gridElement.innerHTML = '';
     postsToRender.forEach(post => {
         const card = document.createElement('div');
         card.className = 'blog-card';
         card.onclick = () => {
-            updateUrlParams({ article: post.id });
-            navigate('article', post);
+            const slug = post.slug || createSlug(post.title);
+            window.location.hash = `/article/${slug}`;
         };
 
         const imgUrl = post.image || 'https://via.placeholder.com/400x200?text=No+Image';
-
-        // Tags rendering
-        const tagsHtml = post.tags ? post.tags.map(tag => `<span class="tag-pill">#${tag}</span>`).join('') : '';
+        const dateStr = post.date || '';
 
         card.innerHTML = `
             <img src="${imgUrl}" alt="${post.title}" class="card-image">
             <div class="card-content">
-                <div style="margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap;">${tagsHtml}</div>
+                <div class="card-meta-top">${post.tags ? post.tags[0] : 'Article'}</div>
                 <h3 class="card-title">${post.title}</h3>
-                <p class="card-excerpt">${post.excerpt}</p>
-                <div class="card-meta">${post.date}</div>
+                <div class="card-meta-bottom">${dateStr}</div>
             </div>
         `;
-        gridElement.prepend(card); // Newest first
+        gridElement.prepend(card);
     });
 }
 
 function filterPosts(query) {
     const grid = document.getElementById('blog-grid');
-    if (!grid) return; // Not on home page
+    if (!grid) return;
 
     const filtered = posts.filter(post => {
-        const matchTitle = post.title.toLowerCase().includes(query);
-        const matchTags = post.tags && post.tags.some(tag => tag.toLowerCase().includes(query));
+        const q = query.toLowerCase();
+        const matchTitle = post.title.toLowerCase().includes(q);
+        const matchTags = post.tags && post.tags.some(tag => tag.toLowerCase().includes(q));
         return matchTitle || matchTags;
     });
 
@@ -225,7 +266,7 @@ function renderAdmin(container) {
                 if (confirm(`Are you sure you want to delete "${post.title}"?`)) {
                     posts = posts.filter(p => p.id !== post.id);
                     savePosts();
-                    navigate('admin'); // Re-render to show updated list
+                    navigate('admin');
                 }
             };
 
@@ -262,13 +303,14 @@ function renderAdmin(container) {
             tags,
             excerpt,
             content,
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            slug: createSlug(title)
         };
 
         posts.push(newPost);
         savePosts();
-        updateUrlParams({});
-        navigate('home');
+        renderSidebarTags(); // Re-render tags in case new ones were added
+        window.location.hash = '';
     });
 
     container.appendChild(clone);
@@ -280,8 +322,7 @@ function renderArticle(container, post) {
     const clone = template.content.cloneNode(true);
 
     clone.querySelector('.back-btn').onclick = () => {
-        updateUrlParams({});
-        navigate('home');
+        window.location.hash = '';
     };
 
     clone.querySelector('.article-hero-img').src = post.image || 'https://via.placeholder.com/800x400?text=No+Image';

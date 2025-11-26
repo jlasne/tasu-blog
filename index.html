@@ -8,52 +8,98 @@
     <meta name="description" content="A simple, elegant blog for Tasu.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 
 <body>
     <div class="app-container">
-        <header>
-            <a href="https://tasu.ai" class="logo-link">
-                <div class="logo-container">
-                    <img src="logo.png" alt="Tasu Logo" class="logo">
-                    <h1>Tasu Blog</h1>
-                    </main>
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="https://tasu.ai" class="logo-link">
+                    <img src="logo.png" alt="Tasu Logo">
+                    <h1>Blog</h1>
+                </a>
+                <p class="sidebar-desc">Growth happens when you stop guessing and start listening.</p>
+            </div>
 
-                    <footer>
-                        <p>Powered by <a href="https://tasu.ai" target="_blank" class="tasu-link">tasu.ai</a></p>
-                    </footer>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <h3 class="nav-title">Filter by Tag</h3>
+                    <button class="nav-item active" data-filter="all">All Articles</button>
+                    <div id="tag-list" class="tag-list">
+                        <!-- Tags injected by JS -->
+                    </div>
                 </div>
+            </nav>
 
-                <!-- Templates for JS to use -->
-                <template id="home-template">
-                    <div class="hero">
-                        <h2>Growth happens when you stop guessing and start listening.</h2>
-                        <p>Explore the latest articles and news from Tasu.</p>
-                        <input type="text" id="post-title" required placeholder="Enter article title...">
-                    </div>
-                    <div class="form-group">
-                        <label for="post-image">Image URL</label>
-                        <input type="url" id="post-image" placeholder="https://example.com/image.jpg">
-                    </div>
-                    <div class="form-group">
-                        <label for="post-tags">Tags (comma separated)</label>
-                        <input type="text" id="post-tags" placeholder="AI, Design, Tech">
-                    </div>
-                    <div class="form-group">
-                        <label for="post-excerpt">Short Excerpt</label>
-                        <textarea id="post-excerpt" rows="2" required placeholder="A brief summary..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="post-content">Content (Markdown supported)</label>
-                        <textarea id="post-content" rows="10" required
-                            placeholder="# Heading\n\nWrite your masterpiece..."></textarea>
-                    </div>
-                    <button type="submit" class="submit-btn">Publish Article</button>
-                    </form>
+            <div class="sidebar-footer">
+                <p>Powered by <a href="https://tasu.ai" target="_blank">tasu.ai</a></p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Content will be injected here by JS -->
+        </main>
     </div>
+
+    <!-- Templates -->
+    <template id="home-template">
+        <div class="header-bar">
+            <div class="search-container">
+                <input type="text" id="search-bar" placeholder="Search articles...">
+            </div>
+        </div>
+        <div class="blog-grid" id="blog-grid">
+            <!-- Blog posts go here -->
+        </div>
+    </template>
+
+    <template id="admin-template">
+        <div class="admin-panel">
+            <div class="admin-header">
+                <h2>Manage Articles</h2>
+                <button class="back-btn-small" onclick="window.location.hash = ''">Close</button>
+            </div>
+
+            <div id="admin-article-list" class="admin-list">
+                <!-- List will be injected here -->
+            </div>
+
+            <h2 style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 40px;">Create New
+                Article</h2>
+            <form id="post-form">
+                <div class="form-group">
+                    <label for="admin-password">Admin Password</label>
+                    <input type="password" id="admin-password" required placeholder="Enter admin password">
+                </div>
+                <div class="form-group">
+                    <label for="post-title">Title</label>
+                    <input type="text" id="post-title" required placeholder="Enter article title...">
+                </div>
+                <div class="form-group">
+                    <label for="post-image">Image URL</label>
+                    <input type="url" id="post-image" placeholder="https://example.com/image.jpg">
+                </div>
+                <div class="form-group">
+                    <label for="post-tags">Tags (comma separated)</label>
+                    <input type="text" id="post-tags" placeholder="AI, Design, Tech">
+                </div>
+                <div class="form-group">
+                    <label for="post-excerpt">Short Excerpt</label>
+                    <textarea id="post-excerpt" rows="2" required placeholder="A brief summary..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="post-content">Content (Markdown supported)</label>
+                    <textarea id="post-content" rows="10" required
+                        placeholder="# Heading\n\nWrite your masterpiece..."></textarea>
+                </div>
+                <button type="submit" class="submit-btn">Publish Article</button>
+            </form>
+        </div>
     </template>
 
     <template id="article-template">
