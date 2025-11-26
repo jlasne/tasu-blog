@@ -1,5 +1,6 @@
 // State
 let posts = [];
+let selectedTagsForNewPost = new Set();
 const STORAGE_KEY = 'tasu_blog_posts';
 const ADMIN_PASSWORD = 'le3gagnant@gmail.com';
 
@@ -9,7 +10,6 @@ const defaultPosts = [
         id: '1',
         title: 'The Future of AI is Here',
         image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1000',
-        excerpt: 'Discover how artificial intelligence is reshaping our daily lives and what to expect in the coming years.',
         content: '# The Future of AI\n\nArtificial Intelligence is no longer just a buzzword. It is integrated into our phones, our cars, and our homes. \n\n## What to expect\n\nIn this article, we explore the transformative power of AI...',
         date: 'Oct 24, 2023',
         tags: ['AI', 'Technology', 'Innovation']
@@ -18,7 +18,6 @@ const defaultPosts = [
         id: '2',
         title: 'Minimalism in Design',
         image: 'https://images.unsplash.com/photo-1507721999472-8ed4421c4af2?auto=format&fit=crop&q=80&w=1000',
-        excerpt: 'Why less is more. A deep dive into the philosophy of minimalist design in modern applications.',
         content: '# Less is More\n\nMinimalism is about stripping away the unnecessary to focus on what truly matters. It is not just an aesthetic choice, but a functional one.\n\n> "Simplicity is the ultimate sophistication." - Leonardo da Vinci',
         date: 'Nov 02, 2023',
         tags: ['Design', 'UX', 'Tutorial']
@@ -27,7 +26,6 @@ const defaultPosts = [
         id: '3',
         title: 'Exploring the Night',
         image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80&w=1000',
-        excerpt: 'A photographic journey through the neon-lit streets of Tokyo after dark.',
         content: '# Neon Lights\n\nThe city comes alive at night. Neon signs reflect off wet pavement, creating a cyberpunk atmosphere that is both eerie and beautiful.',
         date: 'Nov 15, 2023',
         tags: ['Photography', 'Travel', 'Insights']
@@ -40,7 +38,6 @@ function init() {
     if (storedPosts) {
         try {
             posts = JSON.parse(storedPosts);
-            // Ensure all posts have slugs
             posts.forEach(p => {
                 if (!p.slug) p.slug = createSlug(p.title);
             });
@@ -54,10 +51,8 @@ function init() {
         savePosts();
     }
 
-    // Render Sidebar Tags
     renderSidebarTags();
 
-    // Event Listeners
     const searchBar = document.getElementById('search-bar');
     if (searchBar) {
         searchBar.addEventListener('input', (e) => {
@@ -66,12 +61,9 @@ function init() {
         });
     }
 
-    // Sidebar Navigation
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            // Remove active class from all
             document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-            // Add to clicked
             e.target.classList.add('active');
 
             const filter = e.target.dataset.filter;
@@ -83,10 +75,7 @@ function init() {
         });
     });
 
-    // Handle hash routing
     handleHashRouting();
-
-    // Handle browser back/forward
     window.addEventListener('hashchange', handleHashRouting);
 }
 
@@ -107,6 +96,7 @@ function renderSidebarTags() {
         }
     });
 
+    tagList.innerHTML = '';
     allTags.forEach(tag => {
         const btn = document.createElement('button');
         btn.className = 'nav-item';
@@ -116,7 +106,6 @@ function renderSidebarTags() {
             document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             filterPosts(tag);
-            // Stay on home when filtering
             window.location.hash = '';
         };
         tagList.appendChild(btn);
@@ -124,7 +113,7 @@ function renderSidebarTags() {
 }
 
 function handleHashRouting() {
-    const hash = window.location.hash.substring(1); // Remove #
+    const hash = window.location.hash.substring(1);
 
     if (!hash || hash === '/') {
         navigate('home');
@@ -143,10 +132,8 @@ function handleHashRouting() {
     }
 }
 
-// Navigation
 function navigate(view, data = null) {
     const mainContent = document.getElementById('main-content');
-
     mainContent.innerHTML = '';
 
     if (view === 'home') {
@@ -158,7 +145,6 @@ function navigate(view, data = null) {
     }
 }
 
-// Render Home
 function renderHome(container) {
     const template = document.getElementById('home-template');
     const clone = template.content.cloneNode(true);
@@ -219,10 +205,31 @@ function filterPosts(query) {
     renderPostsToGrid(grid, filtered);
 }
 
-// Render Admin
 function renderAdmin(container) {
     const template = document.getElementById('admin-template');
     const clone = template.content.cloneNode(true);
+
+    // Setup password gate
+    const gate = clone.querySelector('#admin-password-gate');
+    const gateInput = clone.querySelector('#gate-password');
+    const gateSubmit = clone.querySelector('#gate-submit');
+    const gateError = clone.querySelector('#gate-error');
+    const adminContent = clone.querySelector('#admin-content');
+
+    const checkPassword = () => {
+        if (gateInput.value === ADMIN_PASSWORD) {
+            gate.style.display = 'none';
+            adminContent.classList.remove('admin-content-blurred');
+            adminContent.classList.add('admin-content-unlocked');
+        } else {
+            gateError.textContent = 'Incorrect password';
+        }
+    };
+
+    gateSubmit.onclick = checkPassword;
+    gateInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') checkPassword();
+    });
 
     // Render Article List
     const listContainer = clone.querySelector('#admin-article-list');
@@ -276,32 +283,28 @@ function renderAdmin(container) {
         });
     }
 
+    // Render existing tags
+    renderExistingTags(clone);
+
     // Form Handling
     const form = clone.querySelector('#post-form');
-
     form.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        const password = form.querySelector('#admin-password').value;
-        if (password !== ADMIN_PASSWORD) {
-            alert('Incorrect Admin Password!');
-            return;
-        }
-
         const title = form.querySelector('#post-title').value;
         const image = form.querySelector('#post-image').value;
-        const tagsStr = form.querySelector('#post-tags').value;
-        const excerpt = form.querySelector('#post-excerpt').value;
+        const tagsInput = form.querySelector('#post-tags').value;
         const content = form.querySelector('#post-content').value;
 
-        const tags = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        // Combine selected existing tags with new ones
+        const newTags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        const allTags = [...selectedTagsForNewPost, ...newTags];
 
         const newPost = {
             id: Date.now().toString(),
             title,
             image,
-            tags,
-            excerpt,
+            tags: allTags,
             content,
             date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             slug: createSlug(title)
@@ -309,14 +312,65 @@ function renderAdmin(container) {
 
         posts.push(newPost);
         savePosts();
-        renderSidebarTags(); // Re-render tags in case new ones were added
+        renderSidebarTags();
+        selectedTagsForNewPost.clear();
         window.location.hash = '';
     });
 
     container.appendChild(clone);
 }
 
-// Render Article
+function renderExistingTags(container) {
+    const tagsContainer = container.querySelector('#existing-tags');
+    if (!tagsContainer) return;
+
+    // Get all unique tags from existing posts
+    const allTags = new Set();
+    posts.forEach(post => {
+        if (post.tags) {
+            post.tags.forEach(tag => allTags.add(tag));
+        }
+    });
+
+    tagsContainer.innerHTML = '';
+    allTags.forEach(tag => {
+        const chip = document.createElement('div');
+        chip.className = 'tag-chip';
+
+        const tagName = document.createElement('span');
+        tagName.textContent = tag;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'tag-chip-delete';
+        deleteBtn.innerHTML = '×';
+        deleteBtn.onclick = () => {
+            if (selectedTagsForNewPost.has(tag)) {
+                selectedTagsForNewPost.delete(tag);
+                chip.style.opacity = '0.5';
+            } else {
+                selectedTagsForNewPost.add(tag);
+                chip.style.opacity = '1';
+            }
+        };
+
+        chip.appendChild(tagName);
+        chip.appendChild(deleteBtn);
+        chip.onclick = () => {
+            if (selectedTagsForNewPost.has(tag)) {
+                selectedTagsForNewPost.delete(tag);
+                chip.style.opacity = '0.5';
+            } else {
+                selectedTagsForNewPost.add(tag);
+                chip.style.opacity = '1';
+            }
+        };
+        chip.style.opacity = '0.5';
+        chip.style.cursor = 'pointer';
+
+        tagsContainer.appendChild(chip);
+    });
+}
+
 function renderArticle(container, post) {
     const template = document.getElementById('article-template');
     const clone = template.content.cloneNode(true);
@@ -329,7 +383,6 @@ function renderArticle(container, post) {
     clone.querySelector('.article-title').textContent = post.title;
     clone.querySelector('.article-date').textContent = post.date;
 
-    // Render Tags
     const tagsContainer = clone.querySelector('.article-tags');
     if (post.tags) {
         post.tags.forEach(tag => {
@@ -340,12 +393,10 @@ function renderArticle(container, post) {
         });
     }
 
-    // Render Markdown Content
     const bodyContainer = clone.querySelector('.article-body');
     if (window.marked) {
         bodyContainer.innerHTML = marked.parse(post.content);
     } else {
-        // Fallback if marked isn't loaded
         bodyContainer.innerHTML = post.content.split('\n').map(p => `<p>${p}</p>`).join('');
     }
 
@@ -353,10 +404,8 @@ function renderArticle(container, post) {
     window.scrollTo(0, 0);
 }
 
-// Utilities
 function savePosts() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
 }
 
-// Start
 init();
