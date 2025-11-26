@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tasu Blog</title>
-    <meta name="description" content="A simple, elegant blog for Tasu.">
+    <title>User-driven Growth - Tasu</title>
+    <meta name="description" content="User-driven growth strategies and insights from Tasu.">
+    <link rel="icon" type="image/png" href="logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -20,7 +21,7 @@
             <div class="sidebar-header">
                 <a href="https://tasu.ai" class="logo-link">
                     <img src="logo.png" alt="Tasu Logo">
-                    <h1>Blog</h1>
+                    <h1>User-driven Growth</h1>
                 </a>
                 <p class="sidebar-desc">Growth happens when you stop guessing and start listening.</p>
             </div>
@@ -74,24 +75,19 @@
             <!-- Admin Content (blurred until authenticated) -->
             <div id="admin-content" class="admin-content-blurred">
                 <div class="admin-header">
-                    <h2>Manage Articles</h2>
+                    <h2 id="admin-form-title">Create New Article</h2>
                     <button class="back-btn-small" onclick="window.location.hash = ''">Close</button>
                 </div>
 
-                <div id="admin-article-list" class="admin-list">
-                    <!-- List will be injected here -->
-                </div>
-
-                <h2 style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 40px;">Create New
-                    Article</h2>
                 <form id="post-form">
+                    <input type="hidden" id="post-id" value="">
                     <div class="form-group">
                         <label for="post-title">Title</label>
                         <input type="text" id="post-title" required placeholder="Enter article title...">
                     </div>
                     <div class="form-group">
-                        <label for="post-image">Image URL</label>
-                        <input type="url" id="post-image" placeholder="https://example.com/image.jpg">
+                        <label for="post-subtitle">Subtitle</label>
+                        <input type="text" id="post-subtitle" required placeholder="Enter article subtitle...">
                     </div>
                     <div class="form-group">
                         <label>Tags</label>
@@ -105,8 +101,18 @@
                         <textarea id="post-content" rows="10" required
                             placeholder="# Heading\n\nWrite your masterpiece..."></textarea>
                     </div>
-                    <button type="submit" class="submit-btn">Publish Article</button>
+                    <div class="form-actions">
+                        <button type="submit" class="submit-btn" id="submit-button">Publish Article</button>
+                        <button type="button" class="cancel-btn" id="cancel-button"
+                            style="display:none;">Cancel</button>
+                    </div>
                 </form>
+
+                <h2 style="margin-top: 60px; border-top: 1px solid var(--border-color); padding-top: 40px;">Manage
+                    Articles</h2>
+                <div id="admin-article-list" class="admin-list">
+                    <!-- List will be injected here -->
+                </div>
             </div>
         </div>
     </template>
@@ -114,10 +120,10 @@
     <template id="article-template">
         <article class="blog-post-view">
             <button class="back-btn">← Back to Home</button>
-            <img src="" alt="" class="article-hero-img">
             <div class="article-content-wrapper">
                 <div class="article-tags"></div>
                 <h1 class="article-title"></h1>
+                <p class="article-subtitle"></p>
                 <div class="article-meta">
                     <span class="article-date"></span>
                 </div>

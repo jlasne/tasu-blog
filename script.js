@@ -1,6 +1,7 @@
 // State
 let posts = [];
 let selectedTagsForNewPost = new Set();
+let editingPostId = null;
 const STORAGE_KEY = 'tasu_blog_posts';
 const ADMIN_PASSWORD = 'le3gagnant@gmail.com';
 
@@ -9,7 +10,7 @@ const defaultPosts = [
     {
         id: '1',
         title: 'The Future of AI is Here',
-        image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1000',
+        subtitle: 'Discover how artificial intelligence is reshaping our daily lives',
         content: '# The Future of AI\n\nArtificial Intelligence is no longer just a buzzword. It is integrated into our phones, our cars, and our homes. \n\n## What to expect\n\nIn this article, we explore the transformative power of AI...',
         date: 'Oct 24, 2023',
         tags: ['AI', 'Technology', 'Innovation']
@@ -17,7 +18,7 @@ const defaultPosts = [
     {
         id: '2',
         title: 'Minimalism in Design',
-        image: 'https://images.unsplash.com/photo-1507721999472-8ed4421c4af2?auto=format&fit=crop&q=80&w=1000',
+        subtitle: 'Why less is more in modern application design',
         content: '# Less is More\n\nMinimalism is about stripping away the unnecessary to focus on what truly matters. It is not just an aesthetic choice, but a functional one.\n\n> "Simplicity is the ultimate sophistication." - Leonardo da Vinci',
         date: 'Nov 02, 2023',
         tags: ['Design', 'UX', 'Tutorial']
@@ -25,7 +26,7 @@ const defaultPosts = [
     {
         id: '3',
         title: 'Exploring the Night',
-        image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80&w=1000',
+        subtitle: 'A photographic journey through neon-lit streets',
         content: '# Neon Lights\n\nThe city comes alive at night. Neon signs reflect off wet pavement, creating a cyberpunk atmosphere that is both eerie and beautiful.',
         date: 'Nov 15, 2023',
         tags: ['Photography', 'Travel', 'Insights']
@@ -40,6 +41,7 @@ function init() {
             posts = JSON.parse(storedPosts);
             posts.forEach(p => {
                 if (!p.slug) p.slug = createSlug(p.title);
+                if (!p.subtitle) p.subtitle = p.excerpt || '';
             });
         } catch (e) {
             console.error('Error parsing posts:', e);
@@ -176,15 +178,17 @@ function renderPostsToGrid(gridElement, postsToRender) {
             window.location.hash = `/article/${slug}`;
         };
 
-        const imgUrl = post.image || 'https://via.placeholder.com/400x200?text=No+Image';
         const dateStr = post.date || '';
+        const tagsHtml = post.tags ? post.tags.map(tag => `<span class="card-tag">${tag}</span>`).join('') : '';
 
         card.innerHTML = `
-            <img src="${imgUrl}" alt="${post.title}" class="card-image">
             <div class="card-content">
-                <div class="card-meta-top">${post.tags ? post.tags[0] : 'Article'}</div>
                 <h3 class="card-title">${post.title}</h3>
-                <div class="card-meta-bottom">${dateStr}</div>
+                <p class="card-subtitle">${post.subtitle || ''}</p>
+                <div class="card-footer">
+                    <div class="card-tags">${tagsHtml}</div>
+                    <span class="card-date">${dateStr}</span>
+                </div>
             </div>
         `;
         gridElement.prepend(card);
@@ -253,6 +257,29 @@ function renderAdmin(container) {
             title.textContent = post.title;
             title.style.fontWeight = '500';
 
+            const actions = document.createElement('div');
+            actions.style.display = 'flex';
+            actions.style.gap = '8px';
+
+            const editBtn = document.createElement('button');
+            editBtn.textContent = 'Edit';
+            editBtn.style.cssText = `
+                background: rgba(255, 159, 28, 0.1);
+                color: var(--accent-orange);
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.85rem;
+                font-weight: 600;
+                transition: all 0.2s;
+            `;
+            editBtn.onmouseover = () => editBtn.style.background = 'rgba(255, 159, 28, 0.2)';
+            editBtn.onmouseout = () => editBtn.style.background = 'rgba(255, 159, 28, 0.1)';
+            editBtn.onclick = () => {
+                editPost(post);
+            };
+
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = 'Delete';
             deleteBtn.style.cssText = `
@@ -277,8 +304,10 @@ function renderAdmin(container) {
                 }
             };
 
+            actions.appendChild(editBtn);
+            actions.appendChild(deleteBtn);
             item.appendChild(title);
-            item.appendChild(deleteBtn);
+            item.appendChild(actions);
             listContainer.appendChild(item);
         });
     }
@@ -288,43 +317,103 @@ function renderAdmin(container) {
 
     // Form Handling
     const form = clone.querySelector('#post-form');
+    const cancelBtn = clone.querySelector('#cancel-button');
+    const submitBtn = clone.querySelector('#submit-button');
+    const formTitle = clone.querySelector('#admin-form-title');
+
+    cancelBtn.onclick = () => {
+        resetForm();
+    };
+
     form.addEventListener('submit', (e) => {
         e.preventDefault();
 
         const title = form.querySelector('#post-title').value;
-        const image = form.querySelector('#post-image').value;
+        const subtitle = form.querySelector('#post-subtitle').value;
         const tagsInput = form.querySelector('#post-tags').value;
         const content = form.querySelector('#post-content').value;
+        const postId = form.querySelector('#post-id').value;
 
-        // Combine selected existing tags with new ones
         const newTags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
         const allTags = [...selectedTagsForNewPost, ...newTags];
 
-        const newPost = {
-            id: Date.now().toString(),
-            title,
-            image,
-            tags: allTags,
-            content,
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            slug: createSlug(title)
-        };
+        if (postId) {
+            // Update existing post
+            const postIndex = posts.findIndex(p => p.id === postId);
+            if (postIndex !== -1) {
+                posts[postIndex] = {
+                    ...posts[postIndex],
+                    title,
+                    subtitle,
+                    tags: allTags,
+                    content,
+                    slug: createSlug(title)
+                };
+            }
+        } else {
+            // Create new post
+            const newPost = {
+                id: Date.now().toString(),
+                title,
+                subtitle,
+                tags: allTags,
+                content,
+                date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                slug: createSlug(title)
+            };
+            posts.push(newPost);
+        }
 
-        posts.push(newPost);
         savePosts();
         renderSidebarTags();
         selectedTagsForNewPost.clear();
-        window.location.hash = '';
+        resetForm();
+        navigate('admin');
     });
 
     container.appendChild(clone);
+
+    // Helper function to edit a post
+    function editPost(post) {
+        editingPostId = post.id;
+        document.getElementById('post-id').value = post.id;
+        document.getElementById('post-title').value = post.title;
+        document.getElementById('post-subtitle').value = post.subtitle || '';
+        document.getElementById('post-content').value = post.content;
+        document.getElementById('admin-form-title').textContent = 'Edit Article';
+        document.getElementById('submit-button').textContent = 'Update Article';
+        document.getElementById('cancel-button').style.display = 'inline-block';
+
+        // Pre-select tags
+        selectedTagsForNewPost.clear();
+        if (post.tags) {
+            post.tags.forEach(tag => selectedTagsForNewPost.add(tag));
+        }
+        renderExistingTags(document.querySelector('.admin-panel'));
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+        editingPostId = null;
+        document.getElementById('post-id').value = '';
+        document.getElementById('post-title').value = '';
+        document.getElementById('post-subtitle').value = '';
+        document.getElementById('post-tags').value = '';
+        document.getElementById('post-content').value = '';
+        document.getElementById('admin-form-title').textContent = 'Create New Article';
+        document.getElementById('submit-button').textContent = 'Publish Article';
+        document.getElementById('cancel-button').style.display = 'none';
+        selectedTagsForNewPost.clear();
+        renderExistingTags(document.querySelector('.admin-panel'));
+    }
 }
 
 function renderExistingTags(container) {
     const tagsContainer = container.querySelector('#existing-tags');
     if (!tagsContainer) return;
 
-    // Get all unique tags from existing posts
     const allTags = new Set();
     posts.forEach(post => {
         if (post.tags) {
@@ -340,21 +429,7 @@ function renderExistingTags(container) {
         const tagName = document.createElement('span');
         tagName.textContent = tag;
 
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'tag-chip-delete';
-        deleteBtn.innerHTML = '×';
-        deleteBtn.onclick = () => {
-            if (selectedTagsForNewPost.has(tag)) {
-                selectedTagsForNewPost.delete(tag);
-                chip.style.opacity = '0.5';
-            } else {
-                selectedTagsForNewPost.add(tag);
-                chip.style.opacity = '1';
-            }
-        };
-
         chip.appendChild(tagName);
-        chip.appendChild(deleteBtn);
         chip.onclick = () => {
             if (selectedTagsForNewPost.has(tag)) {
                 selectedTagsForNewPost.delete(tag);
@@ -364,7 +439,7 @@ function renderExistingTags(container) {
                 chip.style.opacity = '1';
             }
         };
-        chip.style.opacity = '0.5';
+        chip.style.opacity = selectedTagsForNewPost.has(tag) ? '1' : '0.5';
         chip.style.cursor = 'pointer';
 
         tagsContainer.appendChild(chip);
@@ -379,8 +454,8 @@ function renderArticle(container, post) {
         window.location.hash = '';
     };
 
-    clone.querySelector('.article-hero-img').src = post.image || 'https://via.placeholder.com/800x400?text=No+Image';
     clone.querySelector('.article-title').textContent = post.title;
+    clone.querySelector('.article-subtitle').textContent = post.subtitle || '';
     clone.querySelector('.article-date').textContent = post.date;
 
     const tagsContainer = clone.querySelector('.article-tags');
