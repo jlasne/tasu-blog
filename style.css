@@ -364,22 +364,6 @@ body {
     background: var(--accent-orange);
     color: #000;
     text-decoration: none;
-    border-radius: 99px;
-    font-weight: 600;
-    transition: all var(--transition-speed);
-}
-
-.cta-btn:hover {
-    background: var(--accent-orange-dim);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 159, 28, 0.3);
-}
-
-/* Admin Panel */
-.admin-panel {
-    max-width: 700px;
-    margin: 0 auto;
-    background: #1a1a1e;
     padding: 40px;
     border-radius: var(--radius-lg);
     position: relative;
